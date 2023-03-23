@@ -26,6 +26,7 @@
 //
 
 import UIKit
+import AVFoundation
 
 open class AttachmentManager: NSObject, InputPlugin {
     
@@ -191,10 +192,47 @@ extension AttachmentManager: UICollectionViewDataSource, UICollectionViewDelegat
                 cell.imageView.tintColor = tintColor
                 cell.deleteButton.backgroundColor = tintColor
                 return cell
+            case .url(let url):
+                guard let cell = collectionView.dequeueReusableCell(withReuseIdentifier: ImageAttachmentCell.reuseIdentifier, for: indexPath) as? ImageAttachmentCell else {
+                    fatalError()
+                }
+                cell.attachment = attachment
+                cell.indexPath = indexPath
+                cell.manager = self
+                generateThumbnailImage(from: url) { thumbnailImage in
+                    cell.imageView.image = thumbnailImage
+                }
+                cell.imageView.tintColor = tintColor
+                cell.deleteButton.backgroundColor = tintColor
+                return cell
             default:
                 return collectionView.dequeueReusableCell(withReuseIdentifier: AttachmentCell.reuseIdentifier, for: indexPath) as! AttachmentCell
             }
-            
+        }
+    }
+
+    func generateThumbnailImage(from url: URL, completion: @escaping (UIImage?) -> Void) {
+        let asset = AVAsset(url: url)
+        let assetImageGenerator = AVAssetImageGenerator(asset: asset)
+        
+        // Set the maximum size of the thumbnail image
+        let maxSize = CGSize(width: 720, height: 720)
+        assetImageGenerator.maximumSize = maxSize
+        
+        // Get the time for the middle of the video
+        let duration = asset.duration
+        let middleTime = CMTimeMultiplyByFloat64(duration, multiplier: 0.5)
+        
+        // Generate the thumbnail image
+        assetImageGenerator.generateCGImagesAsynchronously(forTimes: [NSValue(time: middleTime)]) { _, cgImage, _, _, _ in
+            guard let cgImage = cgImage else {
+                completion(nil)
+                return
+            }
+            let thumbnailImage = UIImage(cgImage: cgImage)
+            DispatchQueue.main.async {
+                completion(thumbnailImage)
+            }
         }
     }
     
