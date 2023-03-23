@@ -201,7 +201,12 @@ extension AttachmentManager: UICollectionViewDataSource, UICollectionViewDelegat
                 cell.manager = self
                 generateThumbnailImage(from: url) { thumbnailImage in
                     cell.imageView.image = thumbnailImage
+                    let p = PlayButtonView()
+                    cell.imageView.addSubview(p)
+                    p.centerInSuperview()
+                    p.constraint(equalTo: CGSize(width: 15, height: 15))
                 }
+                
                 cell.imageView.tintColor = tintColor
                 cell.deleteButton.backgroundColor = tintColor
                 return cell
@@ -285,5 +290,143 @@ extension AttachmentManager: UICollectionViewDataSource, UICollectionViewDelegat
         cell.containerView.layer.addSublayer(vLayer)
         cell.containerView.layer.addSublayer(hLayer)
         return cell
+    }
+}
+
+
+open class PlayButtonView: UIView {
+  // MARK: Lifecycle
+
+  // MARK: - Initializers
+
+  public override init(frame: CGRect) {
+    super.init(frame: frame)
+
+    setupSubviews()
+    setupConstraints()
+    setupView()
+  }
+
+  required public init?(coder aDecoder: NSCoder) {
+    super.init(coder: aDecoder)
+
+    setupSubviews()
+    setupConstraints()
+    setupView()
+  }
+
+  // MARK: Open
+
+  // MARK: - Methods
+
+  open override func layoutSubviews() {
+    super.layoutSubviews()
+
+    guard !cacheFrame.equalTo(frame) else { return }
+    cacheFrame = frame
+
+    updateTriangleConstraints()
+    applyCornerRadius()
+    applyTriangleMask()
+  }
+
+  // MARK: Public
+
+  // MARK: - Properties
+
+  public let blurView = UIVisualEffectView(effect: UIBlurEffect(style: .light))
+  public let triangleView = UIView()
+
+  // MARK: Private
+
+  private var triangleCenterXConstraint: NSLayoutConstraint?
+  private var cacheFrame: CGRect = .zero
+
+  private func setupSubviews() {
+    addSubview(blurView)
+    addSubview(triangleView)
+  }
+
+  private func setupView() {
+    triangleView.clipsToBounds = true
+    triangleView.backgroundColor = .black
+    blurView.clipsToBounds = true
+    backgroundColor = .clear
+  }
+
+  private func setupConstraints() {
+    triangleView.translatesAutoresizingMaskIntoConstraints = false
+
+    let centerX = triangleView.centerXAnchor.constraint(equalTo: centerXAnchor)
+    let centerY = triangleView.centerYAnchor.constraint(equalTo: centerYAnchor)
+    let width = triangleView.widthAnchor.constraint(equalTo: widthAnchor, multiplier: 0.5)
+    let height = triangleView.heightAnchor.constraint(equalTo: heightAnchor, multiplier: 0.5)
+
+    triangleCenterXConstraint = centerX
+
+    NSLayoutConstraint.activate([centerX, centerY, width, height])
+
+    blurView.translatesAutoresizingMaskIntoConstraints = false
+    NSLayoutConstraint.activate([
+      blurView.centerXAnchor.constraint(equalTo: centerXAnchor),
+      blurView.centerYAnchor.constraint(equalTo: centerYAnchor),
+      blurView.heightAnchor.constraint(equalTo: heightAnchor),
+      blurView.widthAnchor.constraint(equalTo: widthAnchor),
+    ])
+  }
+
+  private func triangleMask(for frame: CGRect) -> CAShapeLayer {
+    let shapeLayer = CAShapeLayer()
+    let trianglePath = UIBezierPath()
+
+    let point1 = CGPoint(x: frame.minX, y: frame.minY)
+    let point2 = CGPoint(x: frame.maxX, y: frame.maxY / 2)
+    let point3 = CGPoint(x: frame.minX, y: frame.maxY)
+
+    trianglePath.move(to: point1)
+    trianglePath.addLine(to: point2)
+    trianglePath.addLine(to: point3)
+    trianglePath.close()
+
+    shapeLayer.path = trianglePath.cgPath
+
+    return shapeLayer
+  }
+
+  private func updateTriangleConstraints() {
+    triangleCenterXConstraint?.constant = triangleView.frame.width / 8
+  }
+
+  private func applyTriangleMask() {
+    let rect = CGRect(origin: .zero, size: triangleView.bounds.size)
+    triangleView.layer.mask = triangleMask(for: rect)
+  }
+
+  private func applyCornerRadius() {
+    blurView.layer.cornerRadius = frame.width / 2
+  }
+}
+
+extension UIView {
+    func centerInSuperview() {
+        guard let superview = superview else {
+            return
+        }
+        translatesAutoresizingMaskIntoConstraints = false
+        let constraints: [NSLayoutConstraint] = [
+            centerXAnchor.constraint(equalTo: superview.centerXAnchor),
+            centerYAnchor.constraint(equalTo: superview.centerYAnchor),
+        ]
+        NSLayoutConstraint.activate(constraints)
+  }
+
+    func constraint(equalTo size: CGSize) {
+        guard superview != nil else { return }
+        translatesAutoresizingMaskIntoConstraints = false
+        let constraints: [NSLayoutConstraint] = [
+            widthAnchor.constraint(equalToConstant: size.width),
+            heightAnchor.constraint(equalToConstant: size.height),
+        ]
+        NSLayoutConstraint.activate(constraints)
     }
 }
